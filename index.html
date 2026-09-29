@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>压缩纹理兼容性实验室</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="hero">
+    <div>
+      <p class="eyebrow">WebGL · Canvas · Worker · IndexedDB · PerformanceObserver</p>
+      <h1>压缩纹理兼容性实验室</h1>
+      <p id="environment" class="environment">正在检测 WebGL 能力……</p>
+    </div>
+    <div class="actions">
+      <button id="runBenchmark" type="button">运行对照测试</button>
+      <button id="clearCache" type="button" class="secondary">清空纹理缓存</button>
+    </div>
+  </header>
+
+  <main>
+    <section class="panel">
+      <div class="panel-title">
+        <h2>浏览器支持情况</h2>
+        <span id="detectionSummary"></span>
+      </div>
+      <div id="supportGrid" class="support-grid"></div>
+    </section>
+
+    <section class="panel split">
+      <form id="loadForm" class="controls">
+        <h2>加载纹理</h2>
+        <label>
+          纹理地址
+          <input id="textureUrl" type="url" placeholder="https://example.com/texture.ktx">
+        </label>
+        <label class="checkbox">
+          <input id="useCache" type="checkbox" checked>
+          使用 IndexedDB 缓存 CORS 成功的 ArrayBuffer
+        </label>
+        <label class="checkbox">
+          <input id="forceFallback" type="checkbox">
+          强制使用未压缩 RGBA 降级
+        </label>
+        <button type="submit">加载并渲染</button>
+      </form>
+
+      <div class="drop-zone" id="dropZone" tabindex="0">
+        <strong>拖入或选择 .ktx / .pvr 文件</strong>
+        <input id="fileInput" type="file" accept=".ktx,.pvr,model/ktx,application/octet-stream" hidden>
+        <button id="chooseFile" type="button" class="secondary">选择本地文件</button>
+        <p>本地文件使用 FileReader/File.arrayBuffer，不经过网络，因此不受 CORS 限制。</p>
+      </div>
+    </section>
+
+    <section id="message" class="message hidden" role="status"></section>
+
+    <section class="panel results">
+      <div>
+        <h2>渲染结果</h2>
+        <canvas id="renderCanvas" width="512" height="512" aria-label="纹理渲染预览"></canvas>
+      </div>
+      <div class="metrics-panel">
+        <h2>最近一次加载</h2>
+        <dl id="textureMetrics" class="metrics"></dl>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-title">
+        <h2>量化对照</h2>
+        <span>加载时间 · 估算显存 · 渲染 PSNR</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>格式</th>
+              <th>支持</th>
+              <th>状态</th>
+              <th>加载耗时</th>
+              <th>解码耗时</th>
+              <th>GPU 上传</th>
+              <th>总耗时</th>
+              <th>传输大小</th>
+              <th>估算显存</th>
+              <th>PSNR</th>
+              <th>来源/降级</th>
+            </tr>
+          </thead>
+          <tbody id="benchmarkBody"></tbody>
+        </table>
+      </div>
+      <p class="note">
+        显存为依据块大小与完整 mipmap 链计算的 GPU 存储估算；浏览器通常不暴露真实驱动占用。
+        PSNR 由 WebGL 渲染结果和参考 Canvas 像素计算，用于比较本页路径，不替代离线编码器质量评估。
+      </p>
+    </section>
+  </main>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>
