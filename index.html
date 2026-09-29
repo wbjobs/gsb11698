@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>压缩纹理加载与降级实验室</title>
+    <link rel="stylesheet" href="src/styles.css">
+  </head>
+  <body>
+    <header class="hero">
+      <div>
+        <p class="eyebrow">WebGL · Canvas · Web Worker · PerformanceObserver · IndexedDB</p>
+        <h1>压缩纹理加载、检测与降级实验室</h1>
+        <p class="subtitle">
+          覆盖 ETC、ETC2、ASTC、S3TC、PVRTC；真实上传探针检测，量化加载、显存、渲染质量，并自动回退未压缩纹理。
+        </p>
+      </div>
+      <div class="environment" id="environment">
+        <span class="status-dot"></span>
+        <strong id="webgl-status">正在初始化 WebGL…</strong>
+        <small id="gpu-info"></small>
+      </div>
+    </header>
+
+    <main>
+      <section class="panel controls-panel">
+        <div class="panel-title">
+          <h2>测试控制</h2>
+          <p>内置 16×16 KTX v1 样例会由 Worker 生成、解析并写入 IndexedDB。</p>
+        </div>
+
+        <div class="controls-grid">
+          <label class="field">
+            <span>内置格式</span>
+            <select id="format-select"></select>
+          </label>
+
+          <label class="checkbox">
+            <input type="checkbox" id="mipmap-toggle" checked>
+            <span>使用 mipmap（压缩纹理使用 KTX 链；未压缩纹理运行时 generateMipmap）</span>
+          </label>
+
+          <label class="checkbox">
+            <input type="checkbox" id="cache-toggle" checked>
+            <span>启用 IndexedDB 纹理缓存</span>
+          </label>
+
+          <label class="checkbox">
+            <input type="checkbox" id="oom-toggle">
+            <span>故障注入：模拟 GPU 显存不足</span>
+          </label>
+        </div>
+
+        <div class="button-row">
+          <button class="primary" id="run-selected">加载所选格式</button>
+          <button id="run-all">顺序对比全部格式</button>
+          <button id="clear-cache">清空纹理缓存</button>
+          <button id="load-corrupt">解码失败演示</button>
+          <button id="simulate-cors">跨域失败演示</button>
+        </div>
+
+        <div class="remote-row">
+          <label class="field url-field">
+            <span>远程 KTX URL（跨域需 CORS）</span>
+            <input id="texture-url" type="url" placeholder="https://example.com/texture.ktx">
+          </label>
+          <button id="load-url">加载 URL</button>
+        </div>
+
+        <div class="remote-row file-row">
+          <label class="field url-field">
+            <span>本地 KTX 文件</span>
+            <input id="texture-file" type="file" accept=".ktx,image/ktx,application/octet-stream">
+          </label>
+          <label class="field url-field">
+            <span>可选：未压缩对照图（PNG/WebP/JPEG）</span>
+            <input id="fallback-file" type="file" accept="image/*">
+          </label>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title horizontal">
+          <div>
+            <h2>格式支持检测</h2>
+            <p>检测条件为扩展存在且最小尺寸压缩数据通过真实 <code>compressedTexImage2D</code> 上传。</p>
+          </div>
+          <span class="pill" id="support-summary"></span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>格式</th>
+                <th>扩展名</th>
+                <th>扩展</th>
+                <th>上传探针</th>
+                <th>块 / 码率</th>
+                <th>基础层估算</th>
+              </tr>
+            </thead>
+            <tbody id="support-table"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title horizontal">
+          <div>
+            <h2>加载、显存与质量对照</h2>
+            <p>显存为驱动上传尺寸的理论驻留估算；PSNR 为离屏 FBO 渲染读回后与参考图的 RGB 差异。</p>
+          </div>
+        </div>
+        <div class="table-wrap metrics-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>格式 / 路径</th>
+                <th>状态</th>
+                <th>获取/生成</th>
+                <th>解析</th>
+                <th>GPU 上传</th>
+                <th>总耗时</th>
+                <th>压缩显存</th>
+                <th>RGBA 降级</th>
+                <th>节省</th>
+                <th>PSNR</th>
+                <th>缓存</th>
+              </tr>
+            </thead>
+            <tbody id="metrics-table">
+              <tr><td colspan="11" class="empty">尚无测试结果。点击“加载所选格式”开始。</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-title">
+          <h2>最近一次纹理预览</h2>
+          <p id="preview-caption">选择一个格式后显示压缩路径与未压缩降级路径。</p>
+        </div>
+        <div class="preview-grid">
+          <figure>
+            <div class="canvas-wrap"><canvas id="compressed-canvas" width="256" height="256"></canvas></div>
+            <figcaption id="compressed-caption">压缩纹理路径</figcaption>
+          </figure>
+          <figure>
+            <div class="canvas-wrap"><canvas id="fallback-canvas" width="256" height="256"></canvas></div>
+            <figcaption id="fallback-caption">未压缩降级路径</figcaption>
+          </figure>
+          <figure>
+            <div class="canvas-wrap"><canvas id="reference-canvas" width="256" height="256"></canvas></div>
+            <figcaption id="reference-caption">参考图</figcaption>
+          </figure>
+        </div>
+        <div class="event-log" id="event-log" aria-live="polite"></div>
+      </section>
+    </main>
+
+    <script type="module" src="src/app.js"></script>
+  </body>
+</html>

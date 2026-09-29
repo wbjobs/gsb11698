@@ -1,0 +1,12 @@
+{
+  "name": "compressed-texture-lab",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node --test tests/*.test.js",
+    "check": "node --test tests/*.test.js",
+    "syntax": "node --check src/app.js && node --check src/formats.js && node --check src/ktx.js && node --check src/fixtures.js && node --check src/idb-cache.js && node --check src/metrics.js && node --check src/fallback-image.js && node --check src/texture-renderer.js && node --check src/texture-worker.js"
+  }
+}
